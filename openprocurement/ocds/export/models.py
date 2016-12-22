@@ -243,7 +243,7 @@ class Release(BaseModel):
         }
 
     # required by standard
-    _id = StringType(default=uuid4(), required=True)
+    id = StringType(default=uuid4(), required=True)
     date = StringType(default=now, required=True)
     ocid = StringType(required=True)
     language = StringType(default='uk', required=True)
@@ -394,9 +394,10 @@ def release_tender(tender, prefix):
             model = getattr(Release, field).model_class
             data['tender'] = model(tender)
     data['ocid'] = get_ocid(prefix, tender['tenderID'])
-    data['_id'] = uuid4().hex
+    data['id'] = uuid4().hex
     data['date'] = tender.get('dateModified')
     return ReleaseDocument(data)
+
 
 def package_tenders(tenders, params):
     data = {}
