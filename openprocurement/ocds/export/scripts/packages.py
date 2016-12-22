@@ -4,17 +4,21 @@ import yaml
 import iso8601
 import os
 import time
-import sys
 import logging
+import tarfile
+import math
 from logging.config import dictConfig
 from simplejson import dump
 from openprocurement.ocds.export.helpers import mode_test
-from openprocurement.ocds.export.storage import TendersStorage, package_tenders
+from openprocurement.ocds.export.storage import TendersStorage
+from openprocurement.ocds.export.models import package_tenders
 from uuid import uuid4
-
+# from boto import S3Connection
+# from filechunkio import FileChunkIO
 
 URI = 'https://fake-url/tenders-{}'.format(uuid4().hex)
 Logger = logging.getLogger(__name__)
+
 
 def read_config(path):
     with open(path) as cfg:
@@ -47,6 +51,23 @@ def dump_package(tenders, config):
         dump(package, outfile)
 
 
+def put_to_s3(path):
+    conn = S3Connection(os.environ['AWS_ACCESS_KEY'], os.environ['AWS_SECRET_KEY'])
+    b = conn.get_bucket('ocds.prozorro.openprocurement.io')
+    for file in os.listdir(path):
+        source_file = os.path.join(path, file)
+        source_size = os.stat(source_file).st_size
+        mp = b.initiate_multipart_upload(os.path.basename(file))
+        chunk_size = 52428800
+        chunk_count = int(math.ceil(source_size / float(chunk_size)))
+        for i in range(chunk_count):
+            offset = chunk_size * i
+            bytes = min(chunk_size, source_size - offset)
+            with FileChunkIO(source_file, 'r', offset=offset, bytes=bytes) as fp:
+                mp.upload_part_from_file(fp, part_num=i + 1)
+        mp.complete_upload()
+
+
 def run():
     args = parse_args()
     releases = []
@@ -76,3 +97,4 @@ def run():
         if tenders:
             Logger.info('dumping {} packages'.format(len(tenders)))
             dump_package(tenders, config)
+        put_to_s3(config.get('path'))
