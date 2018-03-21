@@ -141,7 +141,7 @@ class UnitExt(Unit):
 class Location(Model):
 
     __slots__ = (
-        "geomerty",
+        "geometry",
     )
 
 
@@ -210,11 +210,13 @@ class OrganizationExt(Organization):
         'additionalContactPoints',
     )
 
+
 class ProcuringEntity(OrganizationExt):
 
     __slots__ = OrganizationExt.__slots__ + (
         'kind',
     )
+
 
 class ContactExt(Contact):
 

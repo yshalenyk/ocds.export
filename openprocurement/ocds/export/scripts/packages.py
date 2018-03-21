@@ -56,7 +56,7 @@ REGISTRY = {
     'archives': Queue(),
 }
 REGISTRY['package_funcs'] = [package_records, package_records_ext] if REGISTRY['record']\
-                            else  [package_tenders, package_tenders_ext]
+                            else [package_tenders, package_tenders_ext]
 
 
 def dump_json_to_s3(name, data, pretty=False):
