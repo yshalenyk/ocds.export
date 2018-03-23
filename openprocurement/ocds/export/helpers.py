@@ -7,8 +7,10 @@ import argparse
 from simplejson import dump
 from gevent.pool import Pool
 from iso8601 import parse_date
+from uuid import uuid4
 from datetime import datetime
 from collections import Counter
+from functools import reduce
 from .exceptions import LBMismatchError
 
 from boto.s3 import connect_to_region
@@ -377,3 +379,119 @@ def connect_bucket(config):
     except S3ResponseError as e:
         logger.warn('Unable to connect to s3. Error: {}'.format(e))
         return False
+
+
+def parties(raw_data):
+    tenderers = raw_data.get('tenderers')
+    if tenderers:
+        for tenderer in tenderers:
+            tenderer['roles'] = ['tenderer']
+    else:
+        tenderers = []
+
+    procuringEntity = raw_data.get('procuringEntity')
+    procuringEntity['roles'] = ['buyer', 'procuringEntity']
+
+    suppliers = []
+
+    awards = raw_data.get('awards')
+    if awards:
+        new_suppliers = reduce(
+            lambda x, y: x + y,
+            (award['suppliers'] for award in awards if award.get('suppliers')),
+            []
+        )
+        for supplier in new_suppliers:
+            supplier['roles'] = ['supplier']
+        suppliers += new_suppliers
+
+    contracts = raw_data.get('contracts')
+    if contracts:
+        new_suppliers = reduce(
+            lambda x, y: x + y,
+            (contract['suppliers'] for contract in contracts if contract.get('suppliers')),
+            []
+        )
+        for supplier in new_suppliers:
+            supplier['roles'] = ['supplier']
+        suppliers += new_suppliers
+
+    bids = raw_data.get('bids')
+
+    if bids:
+        new_tenderers = reduce(
+            lambda x, y: x + y,
+            (bid['tenderers'] for bid in bids if bid.get('tenderers')),
+            []
+        )
+        for tenderer in new_tenderers:
+            tenderer['roles'] = ['tenderer']
+        tenderers += new_tenderers
+
+    ids = {}
+    for tenderer in tenderers:
+        id = "{}-{}".format(tenderer['identifier']['scheme'], tenderer['identifier']['id'])
+        if id not in ids:
+            ids[id] = tenderer
+        else:
+            for role in tenderer['roles']:
+                if role not in ids[id]:
+                    ids[id]['roles'].append(role)
+
+    for supplier in suppliers:
+        id = "{}-{}".format(supplier['identifier']['scheme'], supplier['identifier']['id'])
+        if id not in ids:
+            ids[id] = supplier
+        else:
+            for role in supplier['roles']:
+                if role not in ids[id]:
+                    ids[id]['roles'].append(role)
+
+    id = "{}-{}".format(procuringEntity['identifier']['scheme'], procuringEntity['identifier']['id'])
+    if id not in ids:
+        ids[id] = procuringEntity
+    else:
+        for role in procuringEntity['roles']:
+            if role not in ids[id]:
+                ids[id]['roles'].append(role)
+
+    return ids.values()
+
+
+def contractPeriod(raw_data):
+    contracts = raw_data.get('contracts')
+    if contracts and len(contracts) == 1:
+        return contracts[0].get('period')
+    else:
+        return None
+
+
+def minValue(raw_data):
+    if 'active' in raw_data.get('status'):
+        return raw_data.get('value')
+    else:
+        contracts = raw_data.get('contracts')
+        if contracts and len(contracts) == 1:
+            return contracts[0].get('value')
+
+
+def statistics(details):
+    measures = {}
+    if details:
+        for detail in details:
+            status = detail['status']
+            if status in measures:
+                measures[status] += 1
+            else:
+                measures[status] = 1
+
+        return [{'measure': measure, 'number': value, 'id': uuid4().hex} for measure, value in measures.iteritems()]
+
+
+def bids(raw_data):
+    details = raw_data.get('bids')
+    if details:
+        return {
+            'details': details,
+            'statistics': statistics(details)
+        }
