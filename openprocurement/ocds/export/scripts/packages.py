@@ -21,10 +21,10 @@ from openprocurement.ocds.export.ext.models import (
     update_models_map
 )
 from openprocurement.ocds.export.ocds1_1.models import (
-    update_callbacks_new,
-    update_models_map_new,
-    package_tenders_new,
-    package_records_new
+    update_callbacks_can1_1,
+    update_models_map_can1_1,
+    package_tenders_can1_1,
+    package_records_can1_1
 )
 from openprocurement.ocds.export.helpers import (
     read_config,
@@ -55,7 +55,7 @@ REGISTRY = {
     "contracts_storage": None,
     'can_url': 'http://{}/merged_{}/{}',
     'ext_url': 'http://{}/merged_with_extensions_{}/{}',
-    'new_url': 'http://{}/merged_with_ocds1_1_{}/{}',
+    'can1_1_url': 'http://{}/merged_with_ocds1.1_{}/{}',
     'zip_path': '',
     'zipq': Queue(),
     'zipq_ext': Queue(),
@@ -63,8 +63,8 @@ REGISTRY = {
     'done': Event(),
     'archives': Queue(),
 }
-REGISTRY['package_funcs'] = [package_records, package_records_ext, package_records_new] if REGISTRY['record']\
-                            else [package_tenders, package_tenders_ext, package_tenders_new]
+REGISTRY['package_funcs'] = [package_records, package_records_ext, package_records_can1_1] if REGISTRY['record']\
+                            else [package_tenders, package_tenders_ext, package_tenders_can1_1]
 
 
 def dump_json_to_s3(name, data, pretty=False):
@@ -87,8 +87,8 @@ def dump_json_to_s3(name, data, pretty=False):
 def zip_package(name, data):
     if 'extension' in data['uri']:
         zip_path = REGISTRY['zip_path_ext']
-    elif 'ocds1_1' in data['uri']:
-        zip_path = REGISTRY['zip_path_new']
+    elif 'ocds1.1' in data['uri']:
+        zip_path = REGISTRY['zip_path_can1_1']
     else:
         zip_path = REGISTRY['zip_path']
     full_path = join(zip_path, 'releases.zip')
@@ -156,15 +156,16 @@ def fetch_and_dump(total):
                                           'models': update_models_map(),
                                           'callbacks': update_callbacks(),
                                           'q': REGISTRY['zipq_ext']},
-                                         {'uri': REGISTRY['new_url'],
-                                          'models': update_models_map_new(),
-                                          'callbacks': update_callbacks_new(),
+                                         {'uri': REGISTRY['can1_1_url'],
+                                          'models': update_models_map_can1_1(),
+                                          'callbacks': update_callbacks_can1_1(),
                                           'q': REGISTRY['zipq_new']}]
                                         ):
                     LOGGER.info("Start package: {}".format(pack.__name__))
                     package = pack(result, params['models'], params['callbacks'], REGISTRY['config'].get('release'))
                     package['uri'] = params['uri'].format(REGISTRY['config'].get("bucket"), max_date, name)
-                    package['version'] = "1.1" if params['uri'] == REGISTRY['new_url'] else "1.0"
+                    if params['uri'] == REGISTRY['can1_1_url']:
+                        package['version'] = "1.1"
                     if nth == 1:
                         pretty_package = pack(result[:24], params['models'], params['callbacks'], REGISTRY['config'].get('release'))
                         pretty_package['uri'] = params['uri'].format(REGISTRY['config'].get("bucket"), max_date, 'example.json')
@@ -205,7 +206,7 @@ def run():
     REGISTRY['contracting'] = args.contracting
     REGISTRY['zip_path'] = config['path_can']
     REGISTRY['zip_path_ext'] = config['path_ext']
-    REGISTRY['zip_path_new'] = config['path_new']
+    REGISTRY['zip_path_can1_1'] = config['path_can1_1']
     nam = 'records' if args.rec else 'releases'
 
     if args.dates:

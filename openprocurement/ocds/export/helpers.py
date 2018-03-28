@@ -382,91 +382,74 @@ def connect_bucket(config):
 
 
 def parties(raw_data):
+    """ Gets all organization info from tenderers, suppliers, procuringEntities and buyers """
     tenderers = raw_data.get('tenderers')
     if tenderers:
         for tenderer in tenderers:
             tenderer['roles'] = ['tenderer']
     else:
         tenderers = []
-
     procuringEntity = raw_data.get('procuringEntity')
     procuringEntity['roles'] = ['buyer', 'procuringEntity']
-
     suppliers = []
-
     awards = raw_data.get('awards')
     if awards:
-        new_suppliers = reduce(
-            lambda x, y: x + y,
-            (award['suppliers'] for award in awards if award.get('suppliers')),
-            []
-        )
+        new_suppliers = []
+        for award in awards:
+            award_suppliers = award.get('suppliers')
+            if award_suppliers:
+                new_suppliers += award_suppliers
         for supplier in new_suppliers:
             supplier['roles'] = ['supplier']
         suppliers += new_suppliers
-
     contracts = raw_data.get('contracts')
     if contracts:
-        new_suppliers = reduce(
-            lambda x, y: x + y,
-            (contract['suppliers'] for contract in contracts if contract.get('suppliers')),
-            []
-        )
+        new_suppliers = []
+        for contract in contracts:
+            contract_suppliers = contract.get('suppliers')
+            if contract_suppliers:
+                new_suppliers += contract_suppliers
         for supplier in new_suppliers:
             supplier['roles'] = ['supplier']
         suppliers += new_suppliers
-
     bids = raw_data.get('bids')
-
     if bids:
-        new_tenderers = reduce(
-            lambda x, y: x + y,
-            (bid['tenderers'] for bid in bids if bid.get('tenderers')),
-            []
-        )
+        new_tenderers = []
+        for bid in bids:
+            bid_tenderers = bid.get('tenderers')
+            if bid_tenderers:
+                new_tenderers += bid_tenderers
         for tenderer in new_tenderers:
             tenderer['roles'] = ['tenderer']
         tenderers += new_tenderers
-
     ids = {}
+
+    def identify(item):
+        id = "{}-{}".format(item['identifier']['scheme'], item['identifier']['id'])
+        if id not in ids:
+            ids[id] = item
+        else:
+            for role in item['roles']:
+                if role not in ids[id]:
+                    ids[id]['roles'].append(role)
+
     for tenderer in tenderers:
-        id = "{}-{}".format(tenderer['identifier']['scheme'], tenderer['identifier']['id'])
-        if id not in ids:
-            ids[id] = tenderer
-        else:
-            for role in tenderer['roles']:
-                if role not in ids[id]:
-                    ids[id]['roles'].append(role)
-
+        identify(tenderer)
     for supplier in suppliers:
-        id = "{}-{}".format(supplier['identifier']['scheme'], supplier['identifier']['id'])
-        if id not in ids:
-            ids[id] = supplier
-        else:
-            for role in supplier['roles']:
-                if role not in ids[id]:
-                    ids[id]['roles'].append(role)
-
-    id = "{}-{}".format(procuringEntity['identifier']['scheme'], procuringEntity['identifier']['id'])
-    if id not in ids:
-        ids[id] = procuringEntity
-    else:
-        for role in procuringEntity['roles']:
-            if role not in ids[id]:
-                ids[id]['roles'].append(role)
-
+        identify(supplier)
+    identify(procuringEntity)
     return ids.values()
 
 
 def contractPeriod(raw_data):
+    """ Gets contract.period for one lot procedures """
     contracts = raw_data.get('contracts')
     if contracts and len(contracts) == 1:
         return contracts[0].get('period')
-    else:
-        return None
 
 
 def minValue(raw_data):
+    """ Gets tender.value for active tenders, and contract.value for one lot procedures"""
     if 'active' in raw_data.get('status'):
         return raw_data.get('value')
     else:
@@ -476,6 +459,7 @@ def minValue(raw_data):
 
 
 def statistics(details):
+    """ Creates bids.statistics from tender.bids """
     measures = {}
     if details:
         for detail in details:
@@ -484,11 +468,11 @@ def statistics(details):
                 measures[status] += 1
             else:
                 measures[status] = 1
-
         return [{'measure': measure, 'number': value, 'id': uuid4().hex} for measure, value in measures.iteritems()]
 
 
 def bids(raw_data):
+    """ Gets tender.bids """
     details = raw_data.get('bids')
     if details:
         return {

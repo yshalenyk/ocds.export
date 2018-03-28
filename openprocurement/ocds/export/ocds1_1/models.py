@@ -2,6 +2,27 @@ import jsonpatch
 import iso8601
 from copy import deepcopy
 
+
+def update_models_map_can1_1():
+    global modelsMap
+    models_map_ext = deepcopy(modelsMap)
+    models_map_ext['tender'] = (TenderCan1_1, {})
+    models_map_ext['tenderPeriod'] = (PeriodCan1_1, {})
+    models_map_ext['contractPeriod'] = (PeriodCan1_1, {})
+    models_map_ext['enquiryPeriod'] = (PeriodCan1_1, {})
+    models_map_ext['period'] = (PeriodCan1_1, {})
+    models_map_ext['awardPeriod'] = (PeriodCan1_1, {})
+    for key in ('tenderers', 'suppliers', 'procuringEntity', 'buyer'):
+        del models_map_ext[key]
+    models_map_ext['parties'] = (OrganizationCan1_1, [])
+    models_map_ext['value'] = (Value, {})
+    models_map_ext['bids'] = (Bids, {})
+    models_map_ext['details'] = (Bid, [])
+    models_map_ext['statistics'] = (BidStatistics, [])
+    models_map_ext['eligibilityDocuments'] = (Document, [])
+    return models_map_ext
+
+
 from openprocurement.ocds.export.models import (
     modelsMap,
     callbacks,
@@ -27,7 +48,7 @@ from openprocurement.ocds.export.helpers import (
 )
 
 
-def update_callbacks_new():
+def update_callbacks_can1_1():
     global callbacks
     callbacks_ext = deepcopy(callbacks)
     callbacks_ext['contractPeriod'] = contractPeriod
@@ -39,7 +60,7 @@ def update_callbacks_new():
     return callbacks_ext
 
 
-class PeriodNew(Period):
+class PeriodCan1_1(Period):
     __slots__ = Period.__slots__
 
     @property
@@ -49,11 +70,11 @@ class PeriodNew(Period):
         ).days
 
 
-class UnitNew(Unit):
+class UnitCan1_1(Unit):
     __slots__ = Unit.__slots__ + ('uri',)
 
 
-class OrganizationNew(Organization):
+class OrganizationCan1_1(Organization):
     __slots__ = Organization.__slots__ + ('roles', 'id')
 
     @property
@@ -100,7 +121,7 @@ class Bids(Model):
     )
 
 
-class AwardNew(Award):
+class AwardCan1_1(Award):
     __slots__ = (
         'id',
         'title',
@@ -114,7 +135,7 @@ class AwardNew(Award):
     )
 
 
-class TenderNew(Tender):
+class TenderCan1_1(Tender):
     __slots__ = (
         'id',
         'title',
@@ -139,7 +160,7 @@ class TenderNew(Tender):
     )
 
 
-class ReleaseNew(Release):
+class ReleaseCan1_1(Release):
     __slots__ = (
         'id',
         'date',
@@ -155,28 +176,8 @@ class ReleaseNew(Release):
     )
 
 
-def update_models_map_new():
-    global modelsMap
-    models_map_ext = deepcopy(modelsMap)
-    models_map_ext['tender'] = (TenderNew, {})
-    models_map_ext['tenderPeriod'] = (PeriodNew, {})
-    models_map_ext['contractPeriod'] = (PeriodNew, {})
-    models_map_ext['enquiryPeriod'] = (PeriodNew, {})
-    models_map_ext['period'] = (PeriodNew, {})
-    models_map_ext['awardPeriod'] = (PeriodNew, {})
-    for key in ('tenderers', 'suppliers', 'procuringEntity', 'buyer'):
-        del models_map_ext[key]
-    models_map_ext['parties'] = (OrganizationNew, [])
-    models_map_ext['value'] = (Value, {})
-    models_map_ext['bids'] = (Bids, {})
-    models_map_ext['details'] = (Bid, [])
-    models_map_ext['statistics'] = (BidStatistics, [])
-    models_map_ext['eligibilityDocuments'] = (Document, [])
-    return models_map_ext
-
-
-def release_tender_new(tender, modelsMap, callbacks, prefix):
-    release = ReleaseNew(tender, modelsMap, callbacks, prefix).__export__()
+def release_tender_can1_1(tender, modelsMap, callbacks, prefix):
+    release = ReleaseCan1_1(tender, modelsMap, callbacks, prefix).__export__()
     tag = ['tender']
     for op in ('awards', 'contracts', 'bids'):
         if op in release:
@@ -185,7 +186,7 @@ def release_tender_new(tender, modelsMap, callbacks, prefix):
     return release
 
 
-def release_tenders_new(tender, modelsMap, callbacks, prefix):
+def release_tenders_can1_1(tender, modelsMap, callbacks, prefix):
 
     def prepare_first_tags(release):
         tag = ['tender']
@@ -197,12 +198,12 @@ def release_tenders_new(tender, modelsMap, callbacks, prefix):
     assert 'patches' in tender
     patches = tender.pop('patches')
 
-    first_release = ReleaseNew(tender, modelsMap, callbacks, prefix).__export__()
+    first_release = ReleaseCan1_1(tender, modelsMap, callbacks, prefix).__export__()
     first_release['tag'] = prepare_first_tags(first_release)
     releases = [first_release]
     for patch in patches:
         tender = jsonpatch.apply_patch(tender, patch)
-        next_release = ReleaseNew(tender, modelsMap, callbacks).__export__()
+        next_release = ReleaseCan1_1(tender, modelsMap, callbacks).__export__()
         if first_release != next_release:
             diff = jsonpatch.make_patch(first_release, next_release).patch
             tag = []
@@ -226,36 +227,36 @@ def release_tenders_new(tender, modelsMap, callbacks, prefix):
     return releases
 
 
-def record_tenders_new(tender, modelsMap, callbacks, prefix):
-    releases = release_tenders_new(tender, modelsMap, callbacks, prefix)
+def record_tenders_can1_1(tender, modelsMap, callbacks, prefix):
+    releases = release_tenders_can1_1(tender, modelsMap, callbacks, prefix)
     record = {
-        'releases': release_tenders_new(tender, modelsMap, callbacks, prefix),
+        'releases': release_tenders_can1_1(tender, modelsMap, callbacks, prefix),
         'compiledRelease': compile_releases(releases),
         'ocid': releases[0]['ocid']
     }
     return record
 
 
-def package_tenders_new(tenders, modelsMap, callbacks, config):
+def package_tenders_can1_1(tenders, modelsMap, callbacks, config):
     package = build_package(config)
     releases = []
     for tender in tenders:
         if not tender:
             continue
         if 'patches' in tender:
-            releases.extend(release_tenders_new(tender, config.get('prefix')))
+            releases.extend(release_tenders_can1_1(tender, config.get('prefix')))
         else:
-            releases.append(release_tender_new(tender, modelsMap, callbacks, config.get('prefix')))
+            releases.append(release_tender_can1_1(tender, modelsMap, callbacks, config.get('prefix')))
     package['releases'] = releases
     return package
 
 
-def package_records_new(tenders, modelsMap, callbacks, config):
+def package_records_can1_1(tenders, modelsMap, callbacks, config):
     package = build_package(config)
     records = []
     for tender in tenders:
         if not tender:
             continue
-        records.append(record_tenders_new(tender, modelsMap, callbacks, config.get('prefix')))
+        records.append(record_tenders_can1_1(tender, modelsMap, callbacks, config.get('prefix')))
     package['records'] = records
     return package

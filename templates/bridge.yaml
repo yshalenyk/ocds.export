@@ -26,7 +26,7 @@ aws_secret_access_key: ${options['aws_secret_access_key']}
 
 path_can: ${options['path_for_release_can']}
 path_ext: ${options['path_for_release_ext']}
-path_new: ${options['path_for_release_new']}
+path_can1_1: ${options['path_for_release_can1_1']}
 bucket: ${options['bucket']}
 historical: ${options['historical']}
 log_dir: ${options['log_dir']}
