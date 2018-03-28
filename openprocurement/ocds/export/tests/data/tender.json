@@ -34,6 +34,49 @@
   },
   "description": "Тест tender description 9f4cfe8a585145f9a5aa42d7c3c9e4ef",
   "title": "Тест tender 9f4cfe8a585145f9a5aa42d7c3c9e4ef",
+  "awards": [
+    {
+      "status": "cancelled",
+      "suppliers": [
+        {
+          "contactPoint": {
+            "telephone": "380501111111",
+            "name": "Anatoliy Quad",
+            "email": "anatoliy@quad.io"
+          },
+          "identifier": {
+            "scheme": "UA-EDR",
+            "id": "22222222",
+            "legalName": "111111"
+          },
+          "name": "111111",
+          "address": {
+            "postalCode": "02152",
+            "countryName": "Україна",
+            "streetAddress": "Street 1",
+            "region": "м. Київ",
+            "locality": "Kyiv"
+          }
+        }
+      ],
+      "date": "2016-07-21T19:29:04.662628+03:00",
+      "id": "09613423c6ec442dacfefa15c9439d4e"
+    }
+  ],
+  "contracts": [
+    {
+      "id": "8b2b371ea05445308f8d130cd575106b",
+      "period": {
+        "startDate": "2016-07-19T15:28:47.518250+03:00",
+        "endDate": "2016-07-19T15:35:00+03:00"
+      },
+      "value": {
+		"currency": "UAH",
+		"amount": 9000,
+		"valueAddedTaxIncluded": false
+	  }
+    }
+  ],
   "lots": [
     {
       "status": "unsuccessful",

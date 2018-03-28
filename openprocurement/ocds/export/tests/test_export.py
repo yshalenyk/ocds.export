@@ -20,10 +20,20 @@ from openprocurement.ocds.export.ext.models import (
     record_tenders_ext,
     package_tenders_ext
 )
+from openprocurement.ocds.export.ocds1_1.models import (
+    TenderCan1_1,
+    PeriodCan1_1,
+    OrganizationCan1_1,
+    ReleaseCan1_1,
+    update_models_map_can1_1,
+    update_callbacks_can1_1
+)
 from .utils import (
     award,
     contract,
     tender,
+    period,
+    organization,
     config
 )
 
@@ -64,6 +74,26 @@ class TestModelsExt(object):
         new = ContractExt(contract, update_models_map(), update_callbacks()).__export__()
         assert 'contractNumber' in new
         assert 'contractID' in new
+
+
+class TestModelsOcds1_1(object):
+    def test_tender_model(self):
+        new = TenderCan1_1(tender, update_models_map_can1_1(), update_callbacks_can1_1()).__export__()
+        assert 'contractPeriod' in new
+        assert 'minValue' in new
+
+    def test_period_model(self):
+        new = PeriodCan1_1(period, update_models_map_can1_1(), update_callbacks_can1_1()).__export__()
+        assert 'durationInDays' in new
+
+    def test_organization_model(self):
+        new = OrganizationCan1_1(organization, update_models_map_can1_1(), update_callbacks_can1_1()).__export__()
+        assert 'roles' in new
+
+    def test_release_model(self):
+        new = ReleaseCan1_1(tender, update_models_map_can1_1(), update_callbacks_can1_1()).__export__()
+        assert 'parties' in new
+        assert 'bids' in new
 
 
 class TestExport(object):

@@ -39,7 +39,7 @@ class TestStorage(object):
         assert db_name in SERVER
 
     def test_tender_iter(self, db, storage):
-        for item in storage.get_tenders():
+        for item in storage.get_tender():
             assert item == tender
 
     def test_tender_date_modified(self, db, storage):

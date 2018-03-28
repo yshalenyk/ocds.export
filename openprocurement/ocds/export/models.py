@@ -57,7 +57,7 @@ class Model(object):
                 data = callbacks[key](raw_data)
             elif key in raw_data:
                 data = raw_data.get(key)
-            if data:
+            if data or data is 0:
                 if key in modelsMap:
                     klass, _type = modelsMap.get(key)
                     if isinstance(_type, list):
@@ -71,8 +71,7 @@ class Model(object):
         data = {}
         for k in [f for f in dir(self) if not f.startswith('__')]:
             attr = hasattr(self, k) and getattr(self, k)
-            if attr:
-                exported = {}
+            if attr or attr is 0:
                 if isinstance(attr, Model):
                     exported = attr.__export__()
                 elif isinstance(attr, (tuple, list)):
@@ -84,7 +83,7 @@ class Model(object):
                     ]
                 else:
                     exported = attr
-                if exported:
+                if exported or exported is 0:
                     data[k] = exported
         return data
 
@@ -357,10 +356,12 @@ def release_tenders(tender, modelsMap, callbacks, prefix):
 
 
 def record_tenders(tender, modelsMap, callbacks, prefix):
-    record = {}
-    record['releases'] = release_tenders(tender, modelsMap, callbacks, prefix)
-    record['compiledRelease'] = compile_releases(record['releases'])
-    record['ocid'] = record['releases'][0]['ocid']
+    releases = release_tenders(tender, modelsMap, callbacks, prefix)
+    record = {
+        'releases': releases,
+        'compliedRelease': compile_releases(releases),
+        'ocid': releases[0]['ocid']
+    }
     return record
 
 

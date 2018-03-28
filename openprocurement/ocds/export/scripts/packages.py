@@ -20,6 +20,12 @@ from openprocurement.ocds.export.ext.models import (
     update_callbacks,
     update_models_map
 )
+from openprocurement.ocds.export.ocds1_1.models import (
+    update_callbacks_can1_1,
+    update_models_map_can1_1,
+    package_tenders_can1_1,
+    package_records_can1_1
+)
 from openprocurement.ocds.export.helpers import (
     read_config,
     parse_dates,
@@ -49,14 +55,16 @@ REGISTRY = {
     "contracts_storage": None,
     'can_url': 'http://{}/merged_{}/{}',
     'ext_url': 'http://{}/merged_with_extensions_{}/{}',
+    'can1_1_url': 'http://{}/merged_with_ocds1.1_{}/{}',
     'zip_path': '',
     'zipq': Queue(),
     'zipq_ext': Queue(),
+    'zipq_new': Queue(),
     'done': Event(),
     'archives': Queue(),
 }
-REGISTRY['package_funcs'] = [package_records, package_records_ext] if REGISTRY['record']\
-                            else  [package_tenders, package_tenders_ext]
+REGISTRY['package_funcs'] = [package_records, package_records_ext, package_records_can1_1] if REGISTRY['record']\
+                            else [package_tenders, package_tenders_ext, package_tenders_can1_1]
 
 
 def dump_json_to_s3(name, data, pretty=False):
@@ -73,23 +81,26 @@ def dump_json_to_s3(name, data, pretty=False):
         del data
         LOGGER.info("Successfully uploaded {}".format(name))
     except Exception as e:
-        LOGGER.fatal("Exception duting upload {}".format(e))
+        LOGGER.fatal("Exception during upload {}".format(e))
 
 
 def zip_package(name, data):
-    zip_path = REGISTRY['zip_path'] if not 'ext' in data['uri'] else REGISTRY['zip_path_ext']
+    if 'extension' in data['uri']:
+        zip_path = REGISTRY['zip_path_ext']
+    elif 'ocds1.1' in data['uri']:
+        zip_path = REGISTRY['zip_path_can1_1']
+    else:
+        zip_path = REGISTRY['zip_path']
     full_path = join(zip_path, 'releases.zip')
-    dir_name = 'merged_with_extensions_{}/releases.zip'.format(REGISTRY['max_date']) if\
-               'ext' in zip_path else 'merged_{}/releases.zip'.format(REGISTRY['max_date'])
 
     with zipfile.ZipFile(full_path, 'a', zipfile.ZIP_DEFLATED, allowZip64=True) as zf:
         if not isinstance(data, (str, unicode)):
             data = dumps(data)
         try:
             zf.writestr(name, data)
-            LOGGER.info("{} written to atchive {}".format(name, full_path))
+            LOGGER.info("{} written to archive {}".format(name, full_path))
             del data
-        except Exception as e:
+        except:
             LOGGER.fatal("Unable to write package {} to archive {}".format(name, full_path))
 
 
@@ -144,10 +155,17 @@ def fetch_and_dump(total):
                                          {'uri': REGISTRY['ext_url'],
                                           'models': update_models_map(),
                                           'callbacks': update_callbacks(),
-                                          'q': REGISTRY['zipq_ext']}]):
+                                          'q': REGISTRY['zipq_ext']},
+                                         {'uri': REGISTRY['can1_1_url'],
+                                          'models': update_models_map_can1_1(),
+                                          'callbacks': update_callbacks_can1_1(),
+                                          'q': REGISTRY['zipq_new']}]
+                                        ):
                     LOGGER.info("Start package: {}".format(pack.__name__))
                     package = pack(result, params['models'], params['callbacks'], REGISTRY['config'].get('release'))
                     package['uri'] = params['uri'].format(REGISTRY['config'].get("bucket"), max_date, name)
+                    if params['uri'] == REGISTRY['can1_1_url']:
+                        package['version'] = "1.1"
                     if nth == 1:
                         pretty_package = pack(result[:24], params['models'], params['callbacks'], REGISTRY['config'].get('release'))
                         pretty_package['uri'] = params['uri'].format(REGISTRY['config'].get("bucket"), max_date, 'example.json')
@@ -188,6 +206,7 @@ def run():
     REGISTRY['contracting'] = args.contracting
     REGISTRY['zip_path'] = config['path_can']
     REGISTRY['zip_path_ext'] = config['path_ext']
+    REGISTRY['zip_path_can1_1'] = config['path_can1_1']
     nam = 'records' if args.rec else 'releases'
 
     if args.dates:
